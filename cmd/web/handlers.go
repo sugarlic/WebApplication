@@ -3,18 +3,28 @@ package main
 import (
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
+	"text/template"
 
 	"golangify.com/snippetbox/pkg/models"
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		app.notFound(w) // Использование помощника notFound()
+		app.notFound(w)
 		return
 	}
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// Создаем экземпляр структуры templateData,
+	// содержащий срез с заметками.
+	data := &templateData{Snippets: s}
 
 	files := []string{
 		"./ui/html/home.page.tmpl",
@@ -24,13 +34,15 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		app.serverError(w, err) // Использование помощника serverError()
+		app.serverError(w, err)
 		return
 	}
 
-	err = ts.Execute(w, nil)
+	// Передаем структуру templateData в шаблонизатор.
+	// Теперь она будет доступна внутри файлов шаблона через точку.
+	err = ts.Execute(w, data)
 	if err != nil {
-		app.serverError(w, err) // Использование помощника serverError()
+		app.serverError(w, err)
 	}
 }
 
@@ -41,9 +53,6 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Вызываем метода Get из модели Snipping для извлечения данных для
-	// конкретной записи на основе её ID. Если подходящей записи не найдено,
-	// то возвращается ответ 404 Not Found (Страница не найдена).
 	s, err := app.snippets.Get(id)
 	if err != nil {
 		if errors.Is(err, models.ErrNoRecord) {
@@ -54,8 +63,26 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Отображаем весь вывод на странице.
-	fmt.Fprintf(w, "%v", s)
+	// Создаем экземпляр структуры templateData, содержащей данные заметки.
+	data := &templateData{Snippet: s}
+
+	files := []string{
+		"./ui/html/show.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// Передаем структуру templateData в качестве данных для шаблона.
+	err = ts.Execute(w, data)
+	if err != nil {
+		app.serverError(w, err)
+	}
 }
 
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
