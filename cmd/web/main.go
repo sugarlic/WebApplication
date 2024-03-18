@@ -3,24 +3,25 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"html/template" // Новый импорт
 	"log"
 	"net/http"
 	"os"
 
-	"golangify.com/snippetbox/pkg/models/mysql" // Новый импорт
-
 	_ "github.com/go-sql-driver/mysql"
+	"golangify.com/snippetbox/pkg/models/mysql"
 )
 
 type application struct {
-	errorLog *log.Logger
-	infoLog  *log.Logger
-	snippets *mysql.SnippetModel
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	snippets      *mysql.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
 	addr := flag.String("addr", ":4000", "Сетевой адрес веб-сервера")
-	dsn := flag.String("dsn", "web:ilya2003#@/snippetbox?parseTime=true", "Название MySQL источника данных")
+	dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "Название MySQL источника данных")
 	flag.Parse()
 
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
@@ -30,14 +31,18 @@ func main() {
 	if err != nil {
 		errorLog.Fatal(err)
 	}
-
 	defer db.Close()
 
-	// Инициализируем экземпляр mysql.SnippetModel и добавляем его в зависимостях.
+	templateCache, err := newTemplateCache("./ui/html/")
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
 	app := &application{
-		errorLog: errorLog,
-		infoLog:  infoLog,
-		snippets: &mysql.SnippetModel{DB: db},
+		errorLog:      errorLog,
+		infoLog:       infoLog,
+		snippets:      &mysql.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 
 	srv := &http.Server{
@@ -46,7 +51,7 @@ func main() {
 		Handler:  app.routes(),
 	}
 
-	infoLog.Printf("Запуск сервера на %s", *addr)
+	infoLog.Printf("Запуск сервера на http://127.0.0.1%s", *addr)
 	err = srv.ListenAndServe()
 	errorLog.Fatal(err)
 }

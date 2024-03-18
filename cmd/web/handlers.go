@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"text/template"
 
 	"golangify.com/snippetbox/pkg/models"
 )
@@ -22,28 +21,10 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Создаем экземпляр структуры templateData,
-	// содержащий срез с заметками.
-	data := &templateData{Snippets: s}
-
-	files := []string{
-		"./ui/html/home.page.tmpl",
-		"./ui/html/base.layout.tmpl",
-		"./ui/html/footer.partial.tmpl",
-	}
-
-	ts, err := template.ParseFiles(files...)
-	if err != nil {
-		app.serverError(w, err)
-		return
-	}
-
-	// Передаем структуру templateData в шаблонизатор.
-	// Теперь она будет доступна внутри файлов шаблона через точку.
-	err = ts.Execute(w, data)
-	if err != nil {
-		app.serverError(w, err)
-	}
+	// Используем помощника render() для отображения шаблона.
+	app.render(w, r, "home.page.tmpl", &templateData{
+		Snippets: s,
+	})
 }
 
 func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
@@ -63,26 +44,11 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Создаем экземпляр структуры templateData, содержащей данные заметки.
-	data := &templateData{Snippet: s}
+	// Используем помощника render() для отображения шаблона.
+	app.render(w, r, "show.page.tmpl", &templateData{
+		Snippet: s,
+	})
 
-	files := []string{
-		"./ui/html/show.page.tmpl",
-		"./ui/html/base.layout.tmpl",
-		"./ui/html/footer.partial.tmpl",
-	}
-
-	ts, err := template.ParseFiles(files...)
-	if err != nil {
-		app.serverError(w, err)
-		return
-	}
-
-	// Передаем структуру templateData в качестве данных для шаблона.
-	err = ts.Execute(w, data)
-	if err != nil {
-		app.serverError(w, err)
-	}
 }
 
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
